@@ -60,8 +60,10 @@ public interface CipherStorage {
     }
   }
 
+  interface CryptoContext {}
+
   /** Ask access permission for decrypting credentials in provided context. */
-  class DecryptionContext extends CipherResult<byte[]> {
+  class DecryptionContext extends CipherResult<byte[]> implements CryptoContext {
     public final Key key;
     public final String keyAlias;
 
@@ -69,6 +71,20 @@ public interface CipherStorage {
                              @NonNull final Key key,
                              @NonNull final byte[] password,
                              @NonNull final byte[] username) {
+      super(username, password);
+      this.keyAlias = keyAlias;
+      this.key = key;
+    }
+  }
+
+  class EncryptionContext extends CipherResult<String> implements CryptoContext {
+    public final Key key;
+    public final String keyAlias;
+
+    public EncryptionContext(@NonNull final String keyAlias,
+                             @NonNull final Key key,
+                             @NonNull final String password,
+                             @NonNull final String username) {
       super(username, password);
       this.keyAlias = keyAlias;
       this.key = key;
@@ -96,7 +112,7 @@ public interface CipherStorage {
   /** Handler that allows to inject some actions during decrypt operations. */
   interface DecryptionResultHandler extends WithResults {
     /** Ask user for interaction, often its unlock of keystore by biometric data providing. */
-    void askAccessPermissions(@NonNull final DecryptionContext context);
+    void askAccessPermissions(@NonNull final CryptoContext context);
 
     /**
      *

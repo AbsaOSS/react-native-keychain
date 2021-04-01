@@ -277,7 +277,7 @@ public class CipherStorageKeystoreRsaEcb extends CipherStorageBase {
     private Throwable error;
 
     @Override
-    public void askAccessPermissions(@NonNull final DecryptionContext context) {
+    public void askAccessPermissions(@NonNull final CryptoContext context) {
       final CryptoFailedException failure = new CryptoFailedException(
         "Non interactive decryption mode.");
 
@@ -306,7 +306,7 @@ public class CipherStorageKeystoreRsaEcb extends CipherStorageBase {
 
     @Nullable
     @Override
-    public DecryptionResult getEncryptionResult() {
+    public EncryptionResult getEncryptionResult() {
       return encryptionResult;
     }
 

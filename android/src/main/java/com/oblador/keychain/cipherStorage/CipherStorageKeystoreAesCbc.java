@@ -160,8 +160,8 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
       // @SuppressWarnings("ConstantConditions") final DecryptionContext context =
       //   new DecryptionContext(safeAlias, key, password, username);
 
-      @SuppressWarnings("ConstantConditions") final DecryptionContext context =
-        new DecryptionContext(safeAlias, key, new byte[8], new byte[8]);
+      @SuppressWarnings("ConstantConditions") final EncryptionContext context =
+        new EncryptionContext(safeAlias, key, username, password);
 
       handler.askAccessPermissions(context);
       // throw new CryptoFailedException("Could not encrypt data with alias: " + alias, e);

@@ -22,8 +22,12 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.oblador.keychain.PrefsStorage.ResultSet;
 import com.oblador.keychain.cipherStorage.CipherStorage;
+import com.oblador.keychain.cipherStorage.CipherStorage.CipherResult;
+import com.oblador.keychain.cipherStorage.CipherStorage.CryptoContext;
 import com.oblador.keychain.cipherStorage.CipherStorage.DecryptionContext;
+import com.oblador.keychain.cipherStorage.CipherStorage.EncryptionContext;
 import com.oblador.keychain.cipherStorage.CipherStorage.DecryptionResult;
+import com.oblador.keychain.cipherStorage.CipherStorage.EncryptionResult;
 import com.oblador.keychain.cipherStorage.CipherStorage.DecryptionResultHandler;
 import com.oblador.keychain.cipherStorage.CipherStorage.EncryptionResult;
 import com.oblador.keychain.cipherStorage.CipherStorageBase;
@@ -35,6 +39,7 @@ import com.oblador.keychain.exceptions.CryptoFailedException;
 import com.oblador.keychain.exceptions.EmptyParameterException;
 import com.oblador.keychain.exceptions.KeyStoreAccessException;
 
+import java.security.Key;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -44,6 +49,7 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.crypto.Cipher;
 
@@ -861,7 +867,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
     private Throwable error;
     private final CipherStorageBase storage;
     private final Executor executor = Executors.newSingleThreadExecutor();
-    private DecryptionContext context;
+    private CryptoContext context;
     private PromptInfo promptInfo;
     private BioPromptReason bioPromptReason;
 
@@ -872,14 +878,18 @@ public class KeychainModule extends ReactContextBaseJavaModule {
     }
 
     @Override
-    public void askAccessPermissions(@NonNull final DecryptionContext context) {
+    public void askAccessPermissions(@NonNull final CryptoContext context) {
       this.context = context;
 
       if (!DeviceAvailability.isPermissionsGranted(getReactApplicationContext())) {
         final CryptoFailedException failure = new CryptoFailedException(
           "Could not start fingerprint Authentication. No permissions granted.");
 
-        onDecrypt(null, failure);
+        if (context instanceof DecryptionContext) {
+          onDecrypt(null, failure);
+        } else {
+          onEncrypt(null, failure);
+        }
       } else {
         startAuthentication();
       }
@@ -913,7 +923,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
 
     @Nullable
     @Override
-    public DecryptionResult getEncryptionResult() {
+    public EncryptionResult getEncryptionResult() {
       return encryptionResult;
     }
 
@@ -938,24 +948,27 @@ public class KeychainModule extends ReactContextBaseJavaModule {
         if (bioPromptReason == BioPromptReason.DECRYPT) {
           if (null == context) throw new NullPointerException("Decrypt context is not assigned yet.");
 
+          //TODO - better inheritance logic
+          final CipherResult<byte[]> internalCryptoContext = (CipherResult<byte[]>) context;
+          final DecryptionContext decryptionContext = (DecryptionContext) context;
+
           final DecryptionResult decrypted = new DecryptionResult(
-            storage.decryptBytes(context.key, context.username),
-            storage.decryptBytes(context.key, context.password)
+            storage.decryptBytes(decryptionContext.key, internalCryptoContext.username),
+            storage.decryptBytes(decryptionContext.key, internalCryptoContext.password)
           );
 
           onDecrypt(decrypted, null);
         } else if (bioPromptReason == BioPromptReason.ENCRYPT) {
-          final String safeAlias = storage.getDefaultAliasIfEmpty("", getDefaultAliasServiceName());
-          final AtomicInteger retries = new AtomicInteger(1);
 
-          final Key key = extractGeneratedKey(safeAlias, level, retries);
+          final CipherResult<String> internalCryptoContext = (CipherResult<String>) context;
+          final EncryptionContext encryptionContext = (EncryptionContext) context;
 
-          final EncryptionResult encrypted = EncryptionResult(
-            storage.encryptString(key, username),
-            storage.encryptString(key, password),
+
+          final EncryptionResult encrypted = new EncryptionResult(
+            storage.encryptString(encryptionContext.key, internalCryptoContext.username),
+            storage.encryptString(encryptionContext.key, internalCryptoContext.password),
             storage);
           onEncrypt(encrypted, null);
-          //important part of our project -> then we re done
         }
       } catch (Throwable fail) {
         if (bioPromptReason == BioPromptReason.DECRYPT) {
