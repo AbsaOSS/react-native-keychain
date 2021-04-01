@@ -141,35 +141,35 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
                                   @NonNull final SecurityLevel level)
     throws CryptoFailedException {
       System.out.println("ABSA_LOG : encrypt before exception : ");
-    throwIfInsufficientLevel(level);
-    System.out.println("ABSA_LOG : encrypt after exception : alias: " + alias);
+      throwIfInsufficientLevel(level);
+      System.out.println("ABSA_LOG : encrypt after exception : alias: " + alias);
 
-    final String safeAlias = getDefaultAliasIfEmpty(alias, getDefaultAliasServiceName());
-    final AtomicInteger retries = new AtomicInteger(1);
-    System.out.println("ABSA_LOG : safeAlias: " + safeAlias);
-    Key key = null;
-    try {
-      System.out.println("ABSA_LOG : encrypt 1 : ");
-      key = extractGeneratedKey(safeAlias, level, retries);
-      System.out.println("ABSA_LOG : encrypt 2 : ");
-      return new EncryptionResult(
-        encryptString(key, username),
-        encryptString(key, password),
-        this);
-    } catch (GeneralSecurityException e) {
-      // @SuppressWarnings("ConstantConditions") final DecryptionContext context =
-      //   new DecryptionContext(safeAlias, key, password, username);
+      final String safeAlias = getDefaultAliasIfEmpty(alias, getDefaultAliasServiceName());
+      final AtomicInteger retries = new AtomicInteger(1);
+      System.out.println("ABSA_LOG : safeAlias: " + safeAlias);
+      Key key = null;
+      try {
+        System.out.println("ABSA_LOG : encrypt 1 : ");
+        key = extractGeneratedKey(safeAlias, level, retries);
+        System.out.println("ABSA_LOG : encrypt 2 : " + username + " " + password);
+        return new EncryptionResult(
+          encryptString(key, username),
+          encryptString(key, password),
+          this);
+      } catch (GeneralSecurityException e) {
+        // @SuppressWarnings("ConstantConditions") final DecryptionContext context =
+        //   new DecryptionContext(safeAlias, key, password, username);
 
-      @SuppressWarnings("ConstantConditions") final EncryptionContext context =
-        new EncryptionContext(safeAlias, key, username, password);
+        @SuppressWarnings("ConstantConditions") final EncryptionContext context =
+          new EncryptionContext(safeAlias, key, username, password);
 
-      handler.askAccessPermissions(context);
-      // throw new CryptoFailedException("Could not encrypt data with alias: " + alias, e);
-    } catch (Throwable fail) {
-      throw new CryptoFailedException("Unknown error with alias: " + alias +
-        ", error: " + fail.getMessage(), fail);
-    }
-      return null;
+        handler.askAccessPermissions(context);
+        return handler.getEncryptionResult();
+        // throw new CryptoFailedException("Could not encrypt data with alias: " + alias, e);
+      } catch (Throwable fail) {
+        throw new CryptoFailedException("Unknown error with alias: " + alias +
+          ", error: " + fail.getMessage(), fail);
+      }
     }
 
   // @Override

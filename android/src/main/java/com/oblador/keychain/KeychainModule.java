@@ -236,6 +236,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
       final DecryptionResultHandler handler = getInteractiveHandler(storage, promptInfo, BioPromptReason.ENCRYPT);
       System.out.println("ABSA_LOG : setGenericPassword after handler created : ");
       final EncryptionResult result = storage.encrypt(handler, alias, username, password, level);
+      System.out.println("ABSA_LOG : setGenericPassword after encrypt: " + result.toString());
       prefsStorage.storeEncryptedEntry(alias, result);
 
       final WritableMap results = Arguments.createMap();
@@ -947,7 +948,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
       try {
         if (bioPromptReason == BioPromptReason.DECRYPT) {
           if (null == context) throw new NullPointerException("Decrypt context is not assigned yet.");
-
+System.out.println("ABSA_LOG : onAuthenticationSucceeded decrypt branch : ");
           //TODO - better inheritance logic
           final CipherResult<byte[]> internalCryptoContext = (CipherResult<byte[]>) context;
           final DecryptionContext decryptionContext = (DecryptionContext) context;
@@ -959,15 +960,18 @@ public class KeychainModule extends ReactContextBaseJavaModule {
 
           onDecrypt(decrypted, null);
         } else if (bioPromptReason == BioPromptReason.ENCRYPT) {
-
+System.out.println("ABSA_LOG : onAuthenticationSucceeded encrypt branch : 1");
           final CipherResult<String> internalCryptoContext = (CipherResult<String>) context;
+          System.out.println("ABSA_LOG : onAuthenticationSucceeded encrypt branch : 2");
           final EncryptionContext encryptionContext = (EncryptionContext) context;
+          System.out.println("ABSA_LOG : onAuthenticationSucceeded encrypt branch : 3");
 
 
           final EncryptionResult encrypted = new EncryptionResult(
             storage.encryptString(encryptionContext.key, internalCryptoContext.username),
             storage.encryptString(encryptionContext.key, internalCryptoContext.password),
             storage);
+            System.out.println("ABSA_LOG : onAuthenticationSucceeded encrypt branch : 4");
           onEncrypt(encrypted, null);
         }
       } catch (Throwable fail) {
