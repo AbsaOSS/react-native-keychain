@@ -11,6 +11,7 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.oblador.keychain.KeychainModule;
 import com.oblador.keychain.KeychainModule.KnownCiphers;
 import com.oblador.keychain.SecurityLevel;
 import com.oblador.keychain.exceptions.CryptoFailedException;
@@ -105,18 +106,16 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
                                   @NonNull final String password,
                                   @NonNull final SecurityLevel level)
     throws CryptoFailedException {
-      System.out.println("ABSA_LOG : encrypt before exception : ");
+
     throwIfInsufficientLevel(level);
-    System.out.println("ABSA_LOG : encrypt after exception : alias: " + alias);
 
     final String safeAlias = getDefaultAliasIfEmpty(alias, getDefaultAliasServiceName());
     final AtomicInteger retries = new AtomicInteger(1);
-    System.out.println("ABSA_LOG : safeAlias: " + safeAlias);
+    
     Key key = null;
     try {
-      System.out.println("ABSA_LOG : encrypt 1 : ");
       key = extractGeneratedKey(safeAlias, level, retries);
-      System.out.println("ABSA_LOG : encrypt 2 : ");
+
       return new EncryptionResult(
         encryptString(key, username),
         encryptString(key, password),
@@ -140,25 +139,21 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
                                   @NonNull final String password,
                                   @NonNull final SecurityLevel level)
     throws CryptoFailedException {
-      System.out.println("ABSA_LOG : encrypt before exception : ");
       throwIfInsufficientLevel(level);
-      System.out.println("ABSA_LOG : encrypt after exception : alias: " + alias);
 
       final String safeAlias = getDefaultAliasIfEmpty(alias, getDefaultAliasServiceName());
       final AtomicInteger retries = new AtomicInteger(1);
-      System.out.println("ABSA_LOG : safeAlias: " + safeAlias);
+
       Key key = null;
       try {
-        System.out.println("ABSA_LOG : encrypt 1 : ");
+
         key = extractGeneratedKey(safeAlias, level, retries);
-        System.out.println("ABSA_LOG : encrypt 2 : " + username + " " + password);
+
         return new EncryptionResult(
           encryptString(key, username),
           encryptString(key, password),
           this);
       } catch (GeneralSecurityException e) {
-        // @SuppressWarnings("ConstantConditions") final DecryptionContext context =
-        //   new DecryptionContext(safeAlias, key, password, username);
 
         @SuppressWarnings("ConstantConditions") final EncryptionContext context =
           new EncryptionContext(safeAlias, key, username, password);
@@ -172,42 +167,6 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
       }
     }
 
-  // @Override
-  // @NonNull
-  // public EncryptionResult encrypt(@NonNull final DecryptionResultHandler handler,
-  //                                 @NonNull final String alias,
-  //                                 @NonNull final String username,
-  //                                 @NonNull final String password,
-  //                                 @NonNull final SecurityLevel level)
-  //   throws CryptoFailedException {
-  //     System.out.println("ABSA_LOG : encrypt before exception : ");
-  //   throwIfInsufficientLevel(level);
-  //   System.out.println("ABSA_LOG : encrypt after exception : alias: " + alias);
-
-  //   final String safeAlias = getDefaultAliasIfEmpty(alias, getDefaultAliasServiceName());
-  //   final AtomicInteger retries = new AtomicInteger(1);
-  //   System.out.println("ABSA_LOG : safeAlias: " + safeAlias);
-  //   Key key = null;
-  //   try {
-  //     System.out.println("ABSA_LOG : encrypt 1 : ");
-  //     key = extractGeneratedKey(safeAlias, level, retries);
-  //     System.out.println("ABSA_LOG : encrypt 2 : ");
-  //     return new EncryptionResult(
-  //       encryptString(key, username),
-  //       encryptString(key, password),
-  //       this);
-  //   } catch (GeneralSecurityException e) {
-  //     @SuppressWarnings("ConstantConditions") final DecryptionContext context =
-  //       new DecryptionContext(safeAlias, key, password, username);
-
-  //     handler.askAccessPermissions(context);
-  //     // throw new CryptoFailedException("Could not encrypt data with alias: " + alias, e);
-  //   } catch (Throwable fail) {
-  //     throw new CryptoFailedException("Unknown error with alias: " + alias +
-  //       ", error: " + fail.getMessage(), fail);
-  //   }
-  // }
-
   @Override
   @NonNull
   public DecryptionResult decrypt(
@@ -216,7 +175,7 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
                                   @NonNull final byte[] password,
                                   @NonNull final SecurityLevel level)
     throws CryptoFailedException {
-      System.out.println("ABSA_LOG : NON handler type : ");
+
     throwIfInsufficientLevel(level);
 
     final String safeAlias = getDefaultAliasIfEmpty(alias, getDefaultAliasServiceName());
@@ -224,7 +183,6 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
 
     try {
       final Key key = extractGeneratedKey(safeAlias, level, retries);
-
       return new DecryptionResult(
         decryptBytes(key, username),
         decryptBytes(key, password),
@@ -244,14 +202,6 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
                       @NonNull final byte[] username,
                       @NonNull final byte[] password,
                       @NonNull final SecurityLevel level) throws CryptoFailedException {
-                        System.out.println("ABSA_LOG : handler type : " + handler.toString());
-    // try {
-    //   final DecryptionResult results = decrypt(service, username, password, level);
-
-    //   handler.onDecrypt(results, null);
-    // } catch (Throwable fail) {
-    //   handler.onDecrypt(null, fail);
-    // }
     throwIfInsufficientLevel(level);
 
     final String safeAlias = getDefaultAliasIfEmpty(service, getDefaultAliasServiceName());
@@ -262,22 +212,19 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
 
     try {
       // key is always NOT NULL otherwise GeneralSecurityException raised
-      key = extractGeneratedKey(safeAlias, level, retries);
+      // key = extractGeneratedKey(safeAlias, level, retries);
 
-      // final DecryptionResult results = new DecryptionResult(
-      //   decryptBytes(key, username),
-      //   decryptBytes(key, password)
-      // );
-
-      // handler.onDecrypt(results, null);
-
-      // Log.d(LOG_TAG, "Unlock of keystore is needed. Error: " + ex.getMessage(), ex);
-
-      // expected that KEY instance is extracted and we caught exception on decryptBytes operation
-      @SuppressWarnings("ConstantConditions") final DecryptionContext context =
+      try {
+        final DecryptionResult results = decrypt(service, username, password, level);
+        handler.onDecrypt(results, null);
+      } catch(Exception e) {
+        // key is always NOT NULL otherwise GeneralSecurityException raised
+        key = extractGeneratedKey(safeAlias, level, retries);
+        // expected that KEY instance is extracted and we caught exception on decryptBytes operation
+        @SuppressWarnings("ConstantConditions") final DecryptionContext context =
         new DecryptionContext(safeAlias, key, username, password);
-
-      handler.askAccessPermissions(context);
+        handler.askAccessPermissions(context);
+      }
     } catch (final Exception ex) {
       Log.d(LOG_TAG, "Unlock of keystore is needed. Error: " + ex.getMessage(), ex);
 
@@ -304,42 +251,24 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
       throw new KeyStoreAccessException("Unsupported API" + Build.VERSION.SDK_INT + " version detected.");
     }
 
-    // createDecryptKey();
-
     final int purposes = KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT;
 
-    System.out.println("ABSA_LOG : getKeyGenSpecBuilder called with alias : " + alias);
-
-    return new KeyGenParameterSpec.Builder(alias, purposes)
-      .setBlockModes(BLOCK_MODE_CBC)
-      .setEncryptionPaddings(PADDING_PKCS7) //.setUserAuthenticationRequired(true)
-      .setUserAuthenticationRequired(true)
-      .setUserAuthenticationValidityDurationSeconds(5)
-      .setRandomizedEncryptionRequired(true)
-      .setKeySize(ENCRYPTION_KEY_SIZE);
-  }
-
-  private void createDecryptKey() throws GeneralSecurityException {
-
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-      throw new KeyStoreAccessException("Unsupported API" + Build.VERSION.SDK_INT + " version detected.");
+    if (KeychainModule.isSecuredByBiometry(alias)) {
+      return new KeyGenParameterSpec.Builder(alias, purposes)
+        .setBlockModes(BLOCK_MODE_CBC)
+        .setEncryptionPaddings(PADDING_PKCS7)
+        .setUserAuthenticationRequired(true)
+        .setUserAuthenticationValidityDurationSeconds(5)
+        .setRandomizedEncryptionRequired(true)
+        .setKeySize(ENCRYPTION_KEY_SIZE);
+    } else {
+      return new KeyGenParameterSpec.Builder(alias, purposes)
+        .setBlockModes(BLOCK_MODE_CBC)
+        .setEncryptionPaddings(PADDING_PKCS7)
+        .setRandomizedEncryptionRequired(true)
+        .setKeySize(ENCRYPTION_KEY_SIZE);
     }
-
-    final int purposes = KeyProperties.PURPOSE_DECRYPT;// | KeyProperties.PURPOSE_ENCRYPT;
-    KeyGenerator generator = KeyGenerator.getInstance(getEncryptionAlgorithm(), KEYSTORE_TYPE);
     
-    System.out.println("ABSA_LOG : getKeyGenSpecBuilder called is : ");
-
-    KeyGenParameterSpec a = new KeyGenParameterSpec.Builder("RN_KEYCHAIN_DEFAULT_ALIAS_DECR", purposes)
-      .setBlockModes(BLOCK_MODE_CBC)
-      .setEncryptionPaddings(PADDING_PKCS7) //.setUserAuthenticationRequired(true)
-      .setUserAuthenticationRequired(true)
-      .setRandomizedEncryptionRequired(true)
-      .setKeySize(ENCRYPTION_KEY_SIZE)
-      .build();
-
-      generator.init(a);
-      generator.generateKey();
   }
 
   /** Get information about provided key. */
@@ -365,27 +294,6 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
     }
 
     KeyGenerator generator = KeyGenerator.getInstance(getEncryptionAlgorithm(), KEYSTORE_TYPE);
-
-    
-
-    // final int purposes = KeyProperties.PURPOSE_DECRYPT;// | KeyProperties.PURPOSE_ENCRYPT;
-
-    // System.out.println("ABSA_LOG : getKeyGenSpecBuilder called is : ");
-
-    // KeyGenParameterSpec a = new KeyGenParameterSpec.Builder("RN_KEYCHAIN_DEFAULT_ALIAS", purposes)
-    //   .setBlockModes(BLOCK_MODE_CBC)
-    //   .setEncryptionPaddings(PADDING_PKCS7) //.setUserAuthenticationRequired(true)
-    //   .setUserAuthenticationRequired(true)
-    //   .setRandomizedEncryptionRequired(true)
-    //   .setKeySize(ENCRYPTION_KEY_SIZE)
-    //   .build();
-
-    //   generator.init(a);
-    //   generator.generateKey();
-
-    // generator = KeyGenerator.getInstance(getEncryptionAlgorithm(), KEYSTORE_TYPE);
-
-    // initialize key generator
     generator.init(spec);
 
     return generator.generateKey();
@@ -411,7 +319,6 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
       return new String(decryptedBytes, UTF8);
     } catch (Throwable fail) {
       Log.w(LOG_TAG, fail.getMessage(), fail);
-
       throw fail;
     }
   }

@@ -142,7 +142,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
   /** Name-to-instance lookup  map. */
   private final Map<String, CipherStorage> cipherStorageMap = new HashMap<>();
   /** Shared preferences storage. */
-  private final PrefsStorage prefsStorage;
+  private static PrefsStorage prefsStorage;
   //endregion
 
   //region Initialization
@@ -150,7 +150,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
   /** Default constructor. */
   public KeychainModule(@NonNull final ReactApplicationContext reactContext) {
     super(reactContext);
-    prefsStorage = new PrefsStorage(reactContext);
+    this.prefsStorage = new PrefsStorage(reactContext);
 
     addCipherStorageToMap(new CipherStorageFacebookConceal(reactContext));
     addCipherStorageToMap(new CipherStorageKeystoreAesCbc());
@@ -226,7 +226,10 @@ public class KeychainModule extends ReactContextBaseJavaModule {
                                     @NonNull final Promise promise) {
     try {
       throwIfEmptyLoginPassword(username, password);
-
+      final String accessControl = getAccessControlOrDefault(options);
+      final boolean useBiometry = getUseBiometry(accessControl);
+      System.out.println("ABSA_LOG : setGenericPassword useBiometry : " + useBiometry  + " " + alias);
+      prefsStorage.storeKeyType(alias, useBiometry);
       final SecurityLevel level = getSecurityLevelOrDefault(options);
       final CipherStorage storage = getSelectedStorage(options);
       System.out.println("ABSA_LOG : setGenericPassword before exception : ");
@@ -775,6 +778,11 @@ public class KeychainModule extends ReactContextBaseJavaModule {
     Log.d(KEYCHAIN_MODULE, "Selected storage: " + foundCipher.getClass().getSimpleName());
 
     return foundCipher;
+  }
+
+  /** Service might or might not be secured by biometry - depends on options passed when encryption starts */
+  public static boolean isSecuredByBiometry(final String service) {
+    return prefsStorage.getKeyType(service);
   }
 
   /** Throw exception in case of empty credentials providing. */

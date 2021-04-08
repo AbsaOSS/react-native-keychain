@@ -82,6 +82,14 @@ public class PrefsStorage {
       .apply();
   }
 
+  public void storeKeyType(@NonNull final String service, boolean isBioActive) {
+    final String keyType = getKeyTypeForUsername(service);
+
+    prefs.edit()
+      .putBoolean(keyType, isBioActive)
+      .apply();
+  }
+
   /**
    * List all types of cipher which are involved in en/decryption of the data stored herein.
    *
@@ -103,6 +111,12 @@ public class PrefsStorage {
     }
 
     return result;
+  }
+
+  public boolean getKeyType(@NonNull final String service) {
+    final String keyType = getKeyTypeForUsername(service);
+
+    return prefs.getBoolean(keyType, false);
   }
 
   @Nullable
@@ -128,6 +142,11 @@ public class PrefsStorage {
   @NonNull
   public static String getKeyForUsername(@NonNull final String service) {
     return service + ":" + "u";
+  }
+
+  @NonNull
+  public static String getKeyTypeForUsername(@NonNull final String service) {
+    return service + ":" + "utype";
   }
 
   @NonNull
