@@ -275,7 +275,7 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
 
       // expected that KEY instance is extracted and we caught exception on decryptBytes operation
       @SuppressWarnings("ConstantConditions") final DecryptionContext context =
-        new DecryptionContext(safeAlias, key, password, username);
+        new DecryptionContext(safeAlias, key, username, password);
 
       handler.askAccessPermissions(context);
     } catch (final Exception ex) {
@@ -283,7 +283,7 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
 
       // expected that KEY instance is extracted and we caught exception on decryptBytes operation
       @SuppressWarnings("ConstantConditions") final DecryptionContext context =
-        new DecryptionContext(safeAlias, key, password, username);
+        new DecryptionContext(safeAlias, key, username, password);
 
       handler.askAccessPermissions(context);
     } catch (final Throwable fail) {
