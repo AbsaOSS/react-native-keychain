@@ -399,7 +399,7 @@ abstract public class CipherStorageBase implements CipherStorage {
 
     Key secretKey = null;
 
-    multi-threaded usage is possible
+    // multi-threaded usage is possible
     synchronized (_syncStrongbox) {
       if (null == isStrongboxAvailable || isStrongboxAvailable.get()) {
         if (null == isStrongboxAvailable) isStrongboxAvailable = new AtomicBoolean(false);
