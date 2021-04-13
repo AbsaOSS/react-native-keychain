@@ -156,9 +156,9 @@ public class KeychainModule extends ReactContextBaseJavaModule {
     addCipherStorageToMap(new CipherStorageKeystoreAesCbc());
 
     // we have a references to newer api that will fail load of app classes in old androids OS
-    // if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-    //   addCipherStorageToMap(new CipherStorageKeystoreRsaEcb());
-    // }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      addCipherStorageToMap(new CipherStorageKeystoreRsaEcb());
+    }
   }
 
   /** Allow initialization in chain. */
@@ -289,12 +289,6 @@ public class KeychainModule extends ReactContextBaseJavaModule {
     if (null == result) {
       result = getCipherStorageForCurrentAPILevel(useBiometry);
     }
-
-
-    System.out.println("ABSA_LOG : accessControl is : " + accessControl);
-    System.out.println("ABSA_LOG : useBiometry is : " + useBiometry);
-    System.out.println("ABSA_LOG : cipherName is : " + cipherName);
-    System.out.println("ABSA_LOG : result is : " + result);
 
     return result;
   }
