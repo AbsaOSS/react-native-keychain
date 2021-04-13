@@ -17,7 +17,7 @@ public class KeychainPackage implements ReactPackage {
   private final KeychainModuleBuilder builder;
 
   public KeychainPackage() {
-    this(new KeychainModuleBuilder().withoutWarmUp());
+    this(new KeychainModuleBuilder());
   }
 
   public KeychainPackage(KeychainModuleBuilder builder) {
