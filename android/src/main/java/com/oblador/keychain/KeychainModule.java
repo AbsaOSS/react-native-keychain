@@ -228,18 +228,17 @@ public class KeychainModule extends ReactContextBaseJavaModule {
       throwIfEmptyLoginPassword(username, password);
       final String accessControl = getAccessControlOrDefault(options);
       final boolean useBiometry = getUseBiometry(accessControl);
-      System.out.println("ABSA_LOG : setGenericPassword useBiometry : " + useBiometry  + " " + alias);
+      
       prefsStorage.storeKeyType(alias, useBiometry);
       final SecurityLevel level = getSecurityLevelOrDefault(options);
       final CipherStorage storage = getSelectedStorage(options);
-      System.out.println("ABSA_LOG : setGenericPassword before exception : ");
+      
       throwIfInsufficientLevel(storage, level);
-      System.out.println("ABSA_LOG : setGenericPassword after exception : ");
+      
       final PromptInfo promptInfo = getPromptInfo(options);
       final DecryptionResultHandler handler = getInteractiveHandler(storage, promptInfo, BioPromptReason.ENCRYPT);
-      System.out.println("ABSA_LOG : setGenericPassword after handler created : ");
+      
       final EncryptionResult result = storage.encrypt(handler, alias, username, password, level);
-      System.out.println("ABSA_LOG : setGenericPassword after encrypt: " + result.toString());
       prefsStorage.storeEncryptedEntry(alias, result);
 
       final WritableMap results = Arguments.createMap();
@@ -677,7 +676,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
                                            @NonNull final PromptInfo promptInfo)
     throws CryptoFailedException {
     final DecryptionResultHandler handler = getInteractiveHandler(storage, promptInfo, BioPromptReason.DECRYPT);
-    System.out.println("ABSA_LOG : storage to decrypt is : " + storage.toString());
+
     storage.decrypt(handler, alias, resultSet.username, resultSet.password, SecurityLevel.ANY);
 
     CryptoFailedException.reThrowOnError(handler.getError());
@@ -696,11 +695,9 @@ public class KeychainModule extends ReactContextBaseJavaModule {
       @NonNull final PromptInfo promptInfo,
       @NonNull final BioPromptReason bioPromptReason) {
     if (current.isBiometrySupported() /*&& isFingerprintAuthAvailable()*/) {
-      System.out.println("ABSA_LOG : returning interactive");
       return new InteractiveBiometric(current, promptInfo, bioPromptReason);
     }
 
-    System.out.println("ABSA_LOG : returning NON interactive");
     return new NonInteractiveHandler();
   }
 
@@ -950,7 +947,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
       try {
         if (bioPromptReason == BioPromptReason.DECRYPT) {
           if (null == context) throw new NullPointerException("Decrypt context is not assigned yet.");
-System.out.println("ABSA_LOG : onAuthenticationSucceeded decrypt branch : ");
+
           //TODO - better inheritance logic
           final CipherResult<byte[]> internalCryptoContext = (CipherResult<byte[]>) context;
           final DecryptionContext decryptionContext = (DecryptionContext) context;
@@ -962,18 +959,14 @@ System.out.println("ABSA_LOG : onAuthenticationSucceeded decrypt branch : ");
 
           onDecrypt(decrypted, null);
         } else if (bioPromptReason == BioPromptReason.ENCRYPT) {
-System.out.println("ABSA_LOG : onAuthenticationSucceeded encrypt branch : 1");
           final CipherResult<String> internalCryptoContext = (CipherResult<String>) context;
-          System.out.println("ABSA_LOG : onAuthenticationSucceeded encrypt branch : 2");
           final EncryptionContext encryptionContext = (EncryptionContext) context;
-          System.out.println("ABSA_LOG : onAuthenticationSucceeded encrypt branch : 3");
-
 
           final EncryptionResult encrypted = new EncryptionResult(
             storage.encryptString(encryptionContext.key, internalCryptoContext.username),
             storage.encryptString(encryptionContext.key, internalCryptoContext.password),
             storage);
-            System.out.println("ABSA_LOG : onAuthenticationSucceeded encrypt branch : 4");
+
           onEncrypt(encrypted, null);
         }
       } catch (Throwable fail) {
