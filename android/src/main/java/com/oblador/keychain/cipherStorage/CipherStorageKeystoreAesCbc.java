@@ -17,6 +17,8 @@ import com.oblador.keychain.SecurityLevel;
 import com.oblador.keychain.exceptions.CryptoFailedException;
 import com.oblador.keychain.exceptions.KeyStoreAccessException;
 
+import androidx.biometric.BiometricPrompt;
+
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.Key;
@@ -111,7 +113,7 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
 
     final String safeAlias = getDefaultAliasIfEmpty(alias, getDefaultAliasServiceName());
     final AtomicInteger retries = new AtomicInteger(1);
-    
+
     Key key = null;
     try {
       key = extractGeneratedKey(safeAlias, level, retries);
@@ -159,6 +161,9 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
           new EncryptionContext(safeAlias, key, username, password);
 
         handler.askAccessPermissions(context);
+        if (handler.getError() != null && handler.getError().getMessage().contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON)) {
+          throw new CryptoFailedException(handler.getError().getMessage());
+        }
         return handler.getEncryptionResult();
         // throw new CryptoFailedException("Could not encrypt data with alias: " + alias, e);
       } catch (Throwable fail) {
@@ -268,7 +273,7 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
         .setRandomizedEncryptionRequired(true)
         .setKeySize(ENCRYPTION_KEY_SIZE);
     }
-    
+
   }
 
   /** Get information about provided key. */

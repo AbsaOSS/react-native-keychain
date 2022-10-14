@@ -115,6 +115,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
     String E_CRYPTO_FAILED = "E_CRYPTO_FAILED";
     String E_KEYSTORE_ACCESS_ERROR = "E_KEYSTORE_ACCESS_ERROR";
     String E_SUPPORTED_BIOMETRY_ERROR = "E_SUPPORTED_BIOMETRY_ERROR";
+    String E_USER_CANCELED_ERROR = "E_USER_CANCELED_ERROR";
     /** Raised for unexpected errors. */
     String E_UNKNOWN_ERROR = "E_UNKNOWN_ERROR";
   }
@@ -228,16 +229,16 @@ public class KeychainModule extends ReactContextBaseJavaModule {
       throwIfEmptyLoginPassword(username, password);
       final String accessControl = getAccessControlOrDefault(options);
       final boolean useBiometry = getUseBiometry(accessControl);
-      
+
       prefsStorage.storeKeyType(alias, useBiometry);
       final SecurityLevel level = getSecurityLevelOrDefault(options);
       final CipherStorage storage = getSelectedStorage(options);
-      
+
       throwIfInsufficientLevel(storage, level);
-      
+
       final PromptInfo promptInfo = getPromptInfo(options);
       final DecryptionResultHandler handler = getInteractiveHandler(storage, promptInfo, BioPromptReason.ENCRYPT);
-      
+
       final EncryptionResult result = storage.encrypt(handler, alias, username, password, level);
       prefsStorage.storeEncryptedEntry(alias, result);
 
@@ -252,8 +253,11 @@ public class KeychainModule extends ReactContextBaseJavaModule {
       promise.reject(Errors.E_EMPTY_PARAMETERS, e);
     } catch (CryptoFailedException e) {
       Log.e(KEYCHAIN_MODULE, e.getMessage(), e);
-
-      promise.reject(Errors.E_CRYPTO_FAILED, e);
+      if (e.getMessage().contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON)) {
+        promise.reject(Errors.E_USER_CANCELED_ERROR, e);
+      } else {
+        promise.reject(Errors.E_CRYPTO_FAILED, e);
+      }
     } catch (Throwable fail) {
       Log.e(KEYCHAIN_MODULE, fail.getMessage(), fail);
 
