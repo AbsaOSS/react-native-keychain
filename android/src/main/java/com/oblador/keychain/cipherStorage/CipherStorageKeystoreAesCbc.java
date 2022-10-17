@@ -161,8 +161,9 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
           new EncryptionContext(safeAlias, key, username, password);
 
         handler.askAccessPermissions(context);
-        if (handler.getError() != null && handler.getError().getMessage().contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON)) {
-          throw new CryptoFailedException(handler.getError().getMessage());
+        Throwable handlerError = handler.getError();
+        if (handlerError != null && handlerError.getMessage().contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON)) {
+          throw new CryptoFailedException(handlerError.getMessage());
         }
         return handler.getEncryptionResult();
         // throw new CryptoFailedException("Could not encrypt data with alias: " + alias, e);
