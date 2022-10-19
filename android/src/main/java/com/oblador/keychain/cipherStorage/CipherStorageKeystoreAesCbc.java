@@ -162,6 +162,7 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
 
         handler.askAccessPermissions(context);
         Throwable handlerError = handler.getError();
+        System.out.println("======INSIDE  encrypt handlerError.getMessage(): " + handlerError.getMessage());
         if (handlerError != null && handlerError.getMessage().contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON)) {
           throw new CryptoFailedException(handlerError.getMessage());
         }
