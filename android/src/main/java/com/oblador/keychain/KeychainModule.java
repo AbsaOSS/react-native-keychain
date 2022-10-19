@@ -259,6 +259,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
         promise.reject(Errors.E_CRYPTO_FAILED, e);
       }
     } catch (Throwable fail) {
+      System.out.println("======INSIDE  setGenericPassword Throwable, fail: " + fail);
       Log.e(KEYCHAIN_MODULE, fail.getMessage(), fail);
 
       promise.reject(Errors.E_UNKNOWN_ERROR, fail);
