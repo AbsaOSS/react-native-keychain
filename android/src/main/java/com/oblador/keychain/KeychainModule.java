@@ -255,7 +255,8 @@ public class KeychainModule extends ReactContextBaseJavaModule {
       promise.reject(Errors.E_EMPTY_PARAMETERS, e);
     } catch (CryptoFailedException e) {
       Log.e(KEYCHAIN_MODULE, e.getMessage(), e);
-      if (e.getMessage().contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON)) {
+      if (e.getMessage().contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON)
+        || e.getMessage().contains("code: " + BiometricPrompt.ERROR_USER_CANCELED)) {
         promise.reject(Errors.E_USER_CANCELED_ERROR, e);
       } else if (e.getMessage().contains("code: " + BiometricPrompt.ERROR_LOCKOUT)) {
         promise.reject(Errors.E_LOCKOUT_ERROR, e);

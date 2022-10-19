@@ -165,6 +165,7 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
         if (handler.getError() != null) {
           String errorMessage = handler.getError().getMessage();
           if (errorMessage.contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON) ||
+            errorMessage.contains("code: " + BiometricPrompt.ERROR_USER_CANCELED) ||
             errorMessage.contains("code: " + BiometricPrompt.ERROR_LOCKOUT) ||
             errorMessage.contains("code: " + BiometricPrompt.ERROR_LOCKOUT_PERMANENT)) {
             throw new CryptoFailedException(errorMessage);
