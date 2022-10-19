@@ -161,9 +161,9 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
           new EncryptionContext(safeAlias, key, username, password);
 
         handler.askAccessPermissions(context);
-        System.out.println("======INSIDE  encrypt handler.getError().getMessage(): " + handler.getError().getMessage());
         if (handler.getError() != null) {
           String errorMessage = handler.getError().getMessage();
+          System.out.println("======INSIDE  encrypt errorMessage: " + errorMessage);
           if (errorMessage.contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON) ||
             errorMessage.contains("code: " + BiometricPrompt.ERROR_USER_CANCELED) ||
             errorMessage.contains("code: " + BiometricPrompt.ERROR_LOCKOUT) ||
