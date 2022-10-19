@@ -116,6 +116,8 @@ public class KeychainModule extends ReactContextBaseJavaModule {
     String E_KEYSTORE_ACCESS_ERROR = "E_KEYSTORE_ACCESS_ERROR";
     String E_SUPPORTED_BIOMETRY_ERROR = "E_SUPPORTED_BIOMETRY_ERROR";
     String E_USER_CANCELED_ERROR = "E_USER_CANCELED_ERROR";
+    String E_LOCKOUT_ERROR = "E_LOCKOUT_ERROR";
+    String E_LOCKOUT_PERMANENT_ERROR = "E_LOCKOUT_PERMANENT_ERROR";
     /** Raised for unexpected errors. */
     String E_UNKNOWN_ERROR = "E_UNKNOWN_ERROR";
   }
@@ -255,6 +257,10 @@ public class KeychainModule extends ReactContextBaseJavaModule {
       Log.e(KEYCHAIN_MODULE, e.getMessage(), e);
       if (e.getMessage().contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON)) {
         promise.reject(Errors.E_USER_CANCELED_ERROR, e);
+      } else if (e.getMessage().contains("code: " + BiometricPrompt.ERROR_LOCKOUT)) {
+        promise.reject(Errors.E_LOCKOUT_ERROR, e);
+      } else if (e.getMessage().contains("code: " + BiometricPrompt.ERROR_LOCKOUT_PERMANENT)) {
+        promise.reject(Errors.E_LOCKOUT_PERMANENT_ERROR, e);
       } else {
         promise.reject(Errors.E_CRYPTO_FAILED, e);
       }
