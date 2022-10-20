@@ -338,8 +338,16 @@ public class KeychainModule extends ReactContextBaseJavaModule {
       promise.reject(Errors.E_KEYSTORE_ACCESS_ERROR, e);
     } catch (CryptoFailedException e) {
       Log.e(KEYCHAIN_MODULE, e.getMessage());
-
-      promise.reject(Errors.E_CRYPTO_FAILED, e);
+      if (e.getMessage().contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON)
+        || e.getMessage().contains("code: " + BiometricPrompt.ERROR_USER_CANCELED)) {
+        promise.reject(Errors.E_USER_CANCELED_ERROR, e);
+      } else if (e.getMessage().contains("code: " + BiometricPrompt.ERROR_LOCKOUT)) {
+        promise.reject(Errors.E_LOCKOUT_ERROR, e);
+      } else if (e.getMessage().contains("code: " + BiometricPrompt.ERROR_LOCKOUT_PERMANENT)) {
+        promise.reject(Errors.E_LOCKOUT_PERMANENT_ERROR, e);
+      } else {
+        promise.reject(Errors.E_CRYPTO_FAILED, e);
+      }
     } catch (Throwable fail) {
       Log.e(KEYCHAIN_MODULE, fail.getMessage(), fail);
 
@@ -691,6 +699,16 @@ public class KeychainModule extends ReactContextBaseJavaModule {
 
     storage.decrypt(handler, alias, resultSet.username, resultSet.password, SecurityLevel.ANY);
 
+    if (handler.getError() != null) {
+      String errorMessage = handler.getError().getMessage();
+      System.out.println("======INSIDE  decryptToResult errorMessage: " + errorMessage);
+      if (errorMessage.contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON) ||
+        errorMessage.contains("code: " + BiometricPrompt.ERROR_USER_CANCELED) ||
+        errorMessage.contains("code: " + BiometricPrompt.ERROR_LOCKOUT) ||
+        errorMessage.contains("code: " + BiometricPrompt.ERROR_LOCKOUT_PERMANENT)) {
+        throw new CryptoFailedException(errorMessage);
+      }
+    }
     CryptoFailedException.reThrowOnError(handler.getError());
 
     if (null == handler.getResult()) {
