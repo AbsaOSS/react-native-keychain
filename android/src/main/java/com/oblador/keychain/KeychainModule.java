@@ -682,8 +682,8 @@ public class KeychainModule extends ReactContextBaseJavaModule {
     storage.decrypt(handler, alias, resultSet.username, resultSet.password, SecurityLevel.ANY);
 
     if (handler.getError() != null) {
+      System.out.println("======INSIDE  decryptToResult handler.getError().getMessage(): " + handler.getError().getMessage());
       ErrorHelper.handleHandlerError(handler.getError().getMessage());
-      System.out.println("======INSIDE  decryptToResult errorMessage: " + handler.getError().getMessage());
     }
     CryptoFailedException.reThrowOnError(handler.getError());
 

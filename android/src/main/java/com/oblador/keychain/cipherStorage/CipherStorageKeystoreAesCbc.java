@@ -163,8 +163,8 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
 
         handler.askAccessPermissions(context);
         if (handler.getError() != null) {
+          System.out.println("======INSIDE  encrypt handler.getError().getMessage(): " + handler.getError().getMessage());
           ErrorHelper.handleHandlerError(handler.getError().getMessage());
-          System.out.println("======INSIDE  encrypt errorMessage: " + handler.getError().getMessage());
         }
         return handler.getEncryptionResult();
         // throw new CryptoFailedException("Could not encrypt data with alias: " + alias, e);
