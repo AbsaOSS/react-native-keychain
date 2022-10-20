@@ -3,7 +3,7 @@ package com.oblador.keychain;
 import com.oblador.keychain.exceptions.CryptoFailedException;
 import androidx.biometric.BiometricPrompt;
 
-private class ErrorHelper {
+public class ErrorHelper {
   public static void handleHandlerError(String errorMessage) throws CryptoFailedException {
     System.out.println("======INSIDE  handleHandlerError errorMessage: " + errorMessage);
     if (errorMessage.contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON) ||
