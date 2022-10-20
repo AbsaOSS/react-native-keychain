@@ -14,6 +14,7 @@ import androidx.annotation.Nullable;
 import com.oblador.keychain.KeychainModule;
 import com.oblador.keychain.KeychainModule.KnownCiphers;
 import com.oblador.keychain.SecurityLevel;
+import com.oblador.keychain.ErrorHelper;
 import com.oblador.keychain.exceptions.CryptoFailedException;
 import com.oblador.keychain.exceptions.KeyStoreAccessException;
 
@@ -162,14 +163,8 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
 
         handler.askAccessPermissions(context);
         if (handler.getError() != null) {
-          String errorMessage = handler.getError().getMessage();
-          System.out.println("======INSIDE  encrypt errorMessage: " + errorMessage);
-          if (errorMessage.contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON) ||
-            errorMessage.contains("code: " + BiometricPrompt.ERROR_USER_CANCELED) ||
-            errorMessage.contains("code: " + BiometricPrompt.ERROR_LOCKOUT) ||
-            errorMessage.contains("code: " + BiometricPrompt.ERROR_LOCKOUT_PERMANENT)) {
-            throw new CryptoFailedException(errorMessage);
-          }
+          ErrorHelper.handleHandlerError(handler.getError().getMessage());
+          System.out.println("======INSIDE  encrypt errorMessage: " + handler.getError().getMessage());
         }
         return handler.getEncryptionResult();
         // throw new CryptoFailedException("Could not encrypt data with alias: " + alias, e);

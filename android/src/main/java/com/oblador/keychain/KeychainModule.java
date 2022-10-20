@@ -20,6 +20,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
+import com.oblador.keychain.ErrorHelper;
 import com.oblador.keychain.PrefsStorage.ResultSet;
 import com.oblador.keychain.cipherStorage.CipherStorage;
 import com.oblador.keychain.cipherStorage.CipherStorage.CipherResult;
@@ -681,14 +682,8 @@ public class KeychainModule extends ReactContextBaseJavaModule {
     storage.decrypt(handler, alias, resultSet.username, resultSet.password, SecurityLevel.ANY);
 
     if (handler.getError() != null) {
-      String errorMessage = handler.getError().getMessage();
-      System.out.println("======INSIDE  decryptToResult errorMessage: " + errorMessage);
-      if (errorMessage.contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON) ||
-        errorMessage.contains("code: " + BiometricPrompt.ERROR_USER_CANCELED) ||
-        errorMessage.contains("code: " + BiometricPrompt.ERROR_LOCKOUT) ||
-        errorMessage.contains("code: " + BiometricPrompt.ERROR_LOCKOUT_PERMANENT)) {
-        throw new CryptoFailedException(errorMessage);
-      }
+      ErrorHelper.handleHandlerError(handler.getError().getMessage());
+      System.out.println("======INSIDE  decryptToResult errorMessage: " + handler.getError().getMessage());
     }
     CryptoFailedException.reThrowOnError(handler.getError());
 
