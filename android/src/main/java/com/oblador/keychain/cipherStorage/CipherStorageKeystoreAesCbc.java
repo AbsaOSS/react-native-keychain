@@ -163,7 +163,6 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
 
         handler.askAccessPermissions(context);
         if (handler.getError() != null) {
-          System.out.println("======INSIDE  encrypt handler.getError().getMessage(): " + handler.getError().getMessage());
           ErrorHelper.handleHandlerError(handler.getError().getMessage());
         }
         return handler.getEncryptionResult();

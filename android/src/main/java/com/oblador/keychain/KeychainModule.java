@@ -258,7 +258,6 @@ public class KeychainModule extends ReactContextBaseJavaModule {
       Log.e(KEYCHAIN_MODULE, e.getMessage(), e);
       rejectPromiseOnException(promise, e);
     } catch (Throwable fail) {
-      System.out.println("======INSIDE  setGenericPassword Throwable, fail: " + fail);
       Log.e(KEYCHAIN_MODULE, fail.getMessage(), fail);
 
       promise.reject(Errors.E_UNKNOWN_ERROR, fail);
@@ -683,7 +682,6 @@ public class KeychainModule extends ReactContextBaseJavaModule {
     storage.decrypt(handler, alias, resultSet.username, resultSet.password, SecurityLevel.ANY);
 
     if (handler.getError() != null) {
-      System.out.println("======INSIDE  decryptToResult handler.getError().getMessage(): " + handler.getError().getMessage());
       ErrorHelper.handleHandlerError(handler.getError().getMessage());
     }
     CryptoFailedException.reThrowOnError(handler.getError());
