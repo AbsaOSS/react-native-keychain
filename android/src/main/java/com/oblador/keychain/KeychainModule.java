@@ -20,6 +20,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
+import com.oblador.keychain.ErrorHelper;
 import com.oblador.keychain.PrefsStorage.ResultSet;
 import com.oblador.keychain.cipherStorage.CipherStorage;
 import com.oblador.keychain.cipherStorage.CipherStorage.CipherResult;
@@ -27,7 +28,6 @@ import com.oblador.keychain.cipherStorage.CipherStorage.CryptoContext;
 import com.oblador.keychain.cipherStorage.CipherStorage.DecryptionContext;
 import com.oblador.keychain.cipherStorage.CipherStorage.EncryptionContext;
 import com.oblador.keychain.cipherStorage.CipherStorage.DecryptionResult;
-import com.oblador.keychain.cipherStorage.CipherStorage.EncryptionResult;
 import com.oblador.keychain.cipherStorage.CipherStorage.DecryptionResultHandler;
 import com.oblador.keychain.cipherStorage.CipherStorage.EncryptionResult;
 import com.oblador.keychain.cipherStorage.CipherStorageBase;
@@ -116,6 +116,9 @@ public class KeychainModule extends ReactContextBaseJavaModule {
     String E_KEYSTORE_ACCESS_ERROR = "E_KEYSTORE_ACCESS_ERROR";
     String E_SUPPORTED_BIOMETRY_ERROR = "E_SUPPORTED_BIOMETRY_ERROR";
     String E_USER_CANCELED_ERROR = "E_USER_CANCELED_ERROR";
+    String E_LOCKOUT_ERROR = "E_LOCKOUT_ERROR";
+    String E_LOCKOUT_PERMANENT_ERROR = "E_LOCKOUT_PERMANENT_ERROR";
+    String E_NO_BIOMETRICS_ERROR = "E_NO_BIOMETRICS_ERROR";
     /** Raised for unexpected errors. */
     String E_UNKNOWN_ERROR = "E_UNKNOWN_ERROR";
   }
@@ -253,11 +256,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
       promise.reject(Errors.E_EMPTY_PARAMETERS, e);
     } catch (CryptoFailedException e) {
       Log.e(KEYCHAIN_MODULE, e.getMessage(), e);
-      if (e.getMessage().contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON)) {
-        promise.reject(Errors.E_USER_CANCELED_ERROR, e);
-      } else {
-        promise.reject(Errors.E_CRYPTO_FAILED, e);
-      }
+      rejectPromiseOnException(promise, e);
     } catch (Throwable fail) {
       Log.e(KEYCHAIN_MODULE, fail.getMessage(), fail);
 
@@ -330,8 +329,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
       promise.reject(Errors.E_KEYSTORE_ACCESS_ERROR, e);
     } catch (CryptoFailedException e) {
       Log.e(KEYCHAIN_MODULE, e.getMessage());
-
-      promise.reject(Errors.E_CRYPTO_FAILED, e);
+      rejectPromiseOnException(promise, e);
     } catch (Throwable fail) {
       Log.e(KEYCHAIN_MODULE, fail.getMessage(), fail);
 
@@ -683,6 +681,9 @@ public class KeychainModule extends ReactContextBaseJavaModule {
 
     storage.decrypt(handler, alias, resultSet.username, resultSet.password, SecurityLevel.ANY);
 
+    if (handler.getError() != null) {
+      ErrorHelper.handleHandlerError(handler.getError().getMessage());
+    }
     CryptoFailedException.reThrowOnError(handler.getError());
 
     if (null == handler.getResult()) {
@@ -1023,5 +1024,22 @@ public class KeychainModule extends ReactContextBaseJavaModule {
     ENCRYPT,
     DECRYPT
   }
+
+  private static void rejectPromiseOnException(Promise promise, CryptoFailedException e) {
+    String errorMessage = e.getMessage();
+    if (errorMessage.contains("code: " + BiometricPrompt.ERROR_NEGATIVE_BUTTON)
+      || errorMessage.contains("code: " + BiometricPrompt.ERROR_USER_CANCELED)) {
+      promise.reject(Errors.E_USER_CANCELED_ERROR, e);
+    } else if (errorMessage.contains("code: " + BiometricPrompt.ERROR_LOCKOUT)) {
+      promise.reject(Errors.E_LOCKOUT_ERROR, e);
+    } else if (errorMessage.contains("code: " + BiometricPrompt.ERROR_LOCKOUT_PERMANENT)) {
+      promise.reject(Errors.E_LOCKOUT_PERMANENT_ERROR, e);
+    } else if (errorMessage.contains("code: " + BiometricPrompt.ERROR_NO_BIOMETRICS)) {
+      promise.reject(Errors.E_NO_BIOMETRICS_ERROR, e);
+    } else {
+      promise.reject(Errors.E_CRYPTO_FAILED, e);
+    }
+  }
+
   //endregion
 }
