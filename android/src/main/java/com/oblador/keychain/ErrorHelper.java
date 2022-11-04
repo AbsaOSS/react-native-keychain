@@ -9,7 +9,8 @@ public class ErrorHelper {
       errorMessage.contains("code: " + BiometricPrompt.ERROR_USER_CANCELED) ||
       errorMessage.contains("code: " + BiometricPrompt.ERROR_LOCKOUT) ||
       errorMessage.contains("code: " + BiometricPrompt.ERROR_LOCKOUT_PERMANENT) ||
-      errorMessage.contains("code: " + BiometricPrompt.ERROR_NO_BIOMETRICS)) {
+      errorMessage.contains("code: " + BiometricPrompt.ERROR_NO_BIOMETRICS) ||
+      errorMessage.contains("javax.crypto.IllegalBlockSizeException")) {
       throw new CryptoFailedException(errorMessage);
     }
   }
