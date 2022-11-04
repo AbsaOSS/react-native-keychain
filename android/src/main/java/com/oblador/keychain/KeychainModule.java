@@ -303,8 +303,6 @@ public class KeychainModule extends ReactContextBaseJavaModule {
                                     @NonNull final Promise promise) {
     try {
       final ResultSet resultSet = prefsStorage.getEncryptedEntry(alias);
-      if (resultSet != null) {
-      }
 
       if (resultSet == null) {
         Log.e(KEYCHAIN_MODULE, "No entry found for service: " + alias);
@@ -967,12 +965,9 @@ public class KeychainModule extends ReactContextBaseJavaModule {
           final CipherResult<String> internalCryptoContext = (CipherResult<String>) context;
           final EncryptionContext encryptionContext = (EncryptionContext) context;
 
-          byte[] encryptedString = storage.encryptString(encryptionContext.key, internalCryptoContext.password, this.cipher);
-
           final EncryptionResult encrypted = new EncryptionResult(
             internalCryptoContext.username.getBytes(),
-            encryptedString,
-//            storage.encryptString(encryptionContext.key, internalCryptoContext.password, this.cipher),
+            storage.encryptString(encryptionContext.key, internalCryptoContext.password, this.cipher),
             storage);
 
           onEncrypt(encrypted, null);
