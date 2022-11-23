@@ -157,23 +157,20 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
         key = extractGeneratedKey(safeAlias, level, retries);
 
         if (KeychainModule.isSecuredByBiometry(alias)) {
-          throw new GeneralSecurityException("BIOMETRICS");
+          @SuppressWarnings("ConstantConditions") final EncryptionContext context =
+            new EncryptionContext(safeAlias, key, password, username);
+
+          handler.askAccessPermissions(context);
+          if (handler.getError() != null) {
+            ErrorHelper.handleHandlerError(handler.getError().getMessage());
+          }
+          return handler.getEncryptionResult();
         } else {
           return new EncryptionResult(
             username.getBytes(),
             encryptString(key, password),
             this);
         }
-      } catch (GeneralSecurityException e) {
-
-        @SuppressWarnings("ConstantConditions") final EncryptionContext context =
-          new EncryptionContext(safeAlias, key, password, username);
-
-        handler.askAccessPermissions(context);
-        if (handler.getError() != null) {
-          ErrorHelper.handleHandlerError(handler.getError().getMessage());
-        }
-        return handler.getEncryptionResult();
         // throw new CryptoFailedException("Could not encrypt data with alias: " + alias, e);
       } catch (Throwable fail) {
         throw new CryptoFailedException("Unknown error with alias: " + alias +
