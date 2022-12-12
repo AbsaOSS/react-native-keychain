@@ -1,5 +1,7 @@
 package com.oblador.keychain;
 
+import java.nio.charset.StandardCharsets;
+
 import android.os.Build;
 import android.os.Looper;
 import android.text.TextUtils;
@@ -119,6 +121,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
     String E_LOCKOUT_ERROR = "E_LOCKOUT_ERROR";
     String E_LOCKOUT_PERMANENT_ERROR = "E_LOCKOUT_PERMANENT_ERROR";
     String E_NO_BIOMETRICS_ERROR = "E_NO_BIOMETRICS_ERROR";
+    String E_BIOMETRICS_INVALIDATED = "E_BIOMETRICS_INVALIDATED";
     /** Raised for unexpected errors. */
     String E_UNKNOWN_ERROR = "E_UNKNOWN_ERROR";
   }
@@ -378,19 +381,11 @@ public class KeychainModule extends ReactContextBaseJavaModule {
   }
 
   protected void resetGenericPassword(@NonNull final String alias,
+                                      @NonNull CipherStorage cipherStorage,
                                       @NonNull final Promise promise) {
     try {
-      // First we clean up the cipher storage (using the cipher storage that was used to store the entry)
-      final ResultSet resultSet = prefsStorage.getEncryptedEntry(alias);
 
-      if (resultSet != null) {
-        final CipherStorage cipherStorage = getCipherStorageByName(resultSet.cipherStorageName);
-
-        if (cipherStorage != null) {
-          cipherStorage.removeKey(alias);
-        }
-      }
-      // And then we remove the entry in the shared preferences
+      cipherStorage.removeKey(alias);
       prefsStorage.removeEntry(alias);
 
       promise.resolve(true);
@@ -407,9 +402,11 @@ public class KeychainModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void resetGenericPasswordForOptions(@Nullable final ReadableMap options,
-                                             @NonNull final Promise promise) {
+                                             @NonNull final Promise promise)
+    throws CryptoFailedException {
     final String service = getServiceOrDefault(options);
-    resetGenericPassword(service, promise);
+    final CipherStorage storage = getSelectedStorage(options);
+    resetGenericPassword(service, storage, promise);
   }
 
   @ReactMethod
@@ -451,7 +448,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void resetInternetCredentialsForServer(@NonNull final String server,
                                                 @NonNull final Promise promise) {
-    resetGenericPassword(server, promise);
+    resetGenericPassword(server, null, promise);
   }
 
   @ReactMethod
@@ -875,6 +872,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
     private CryptoContext context;
     private PromptInfo promptInfo;
     private BioPromptReason bioPromptReason;
+    private Cipher cipher;
 
     private InteractiveBiometric(@NonNull final CipherStorage storage, @NonNull final PromptInfo promptInfo, BioPromptReason bioPromptReason) {
       this.storage = (CipherStorageBase) storage;
@@ -958,8 +956,8 @@ public class KeychainModule extends ReactContextBaseJavaModule {
           final DecryptionContext decryptionContext = (DecryptionContext) context;
 
           final DecryptionResult decrypted = new DecryptionResult(
-            storage.decryptBytes(decryptionContext.key, internalCryptoContext.username),
-            storage.decryptBytes(decryptionContext.key, internalCryptoContext.password)
+            new String(internalCryptoContext.username, StandardCharsets.UTF_8),
+            storage.decryptBytes(decryptionContext.key, internalCryptoContext.password, this.cipher)
           );
 
           onDecrypt(decrypted, null);
@@ -968,8 +966,8 @@ public class KeychainModule extends ReactContextBaseJavaModule {
           final EncryptionContext encryptionContext = (EncryptionContext) context;
 
           final EncryptionResult encrypted = new EncryptionResult(
-            storage.encryptString(encryptionContext.key, internalCryptoContext.username),
-            storage.encryptString(encryptionContext.key, internalCryptoContext.password),
+            internalCryptoContext.username.getBytes(),
+            storage.encryptString(encryptionContext.key, internalCryptoContext.password, this.cipher),
             storage);
 
           onEncrypt(encrypted, null);
@@ -997,7 +995,21 @@ public class KeychainModule extends ReactContextBaseJavaModule {
 
       final BiometricPrompt prompt = new BiometricPrompt(activity, executor, this);
 
-      prompt.authenticate(this.promptInfo);
+      try {
+        this.cipher = this.storage.getCachedInstance();
+        if (bioPromptReason == BioPromptReason.DECRYPT) {
+          CipherStorageBase.IV.initCipherForDecrypt(this.cipher, ((DecryptionContext) this.context).key, ((DecryptionContext) this.context).password);
+        } else if (bioPromptReason == BioPromptReason.ENCRYPT) {
+          this.cipher.init(Cipher.ENCRYPT_MODE, ((EncryptionContext) this.context).key);
+        }
+        prompt.authenticate(this.promptInfo, new BiometricPrompt.CryptoObject(cipher));
+      } catch (Throwable fail) {
+        if (bioPromptReason == BioPromptReason.DECRYPT) {
+          onDecrypt(null, fail);
+        } else if (bioPromptReason == BioPromptReason.ENCRYPT) {
+          onEncrypt(null, fail);
+        }
+      }
     }
 
     /** Block current NON-main thread and wait for user authentication results. */
@@ -1036,6 +1048,8 @@ public class KeychainModule extends ReactContextBaseJavaModule {
       promise.reject(Errors.E_LOCKOUT_PERMANENT_ERROR, e);
     } else if (errorMessage.contains("code: " + BiometricPrompt.ERROR_NO_BIOMETRICS)) {
       promise.reject(Errors.E_NO_BIOMETRICS_ERROR, e);
+    } else if (errorMessage.contains("Key permanently invalidated") || errorMessage.contains("javax.crypto.IllegalBlockSizeException")) {
+      promise.reject(Errors.E_BIOMETRICS_INVALIDATED, e);
     } else {
       promise.reject(Errors.E_CRYPTO_FAILED, e);
     }

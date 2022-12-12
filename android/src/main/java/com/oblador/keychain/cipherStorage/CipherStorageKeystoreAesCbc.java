@@ -1,5 +1,7 @@
 package com.oblador.keychain.cipherStorage;
 
+import java.nio.charset.StandardCharsets;
+
 import android.annotation.TargetApi;
 import android.os.Build;
 import android.security.keystore.KeyGenParameterSpec;
@@ -31,6 +33,8 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.IvParameterSpec;
+
+import java.io.ByteArrayInputStream;
 
 /**
  * @see <a href="https://proandroiddev.com/secure-data-in-android-initialization-vector-6ca1c659762c">Secure Data in Android</a>
@@ -152,20 +156,21 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
 
         key = extractGeneratedKey(safeAlias, level, retries);
 
-        return new EncryptionResult(
-          encryptString(key, username),
-          encryptString(key, password),
-          this);
-      } catch (GeneralSecurityException e) {
+        if (KeychainModule.isSecuredByBiometry(alias)) {
+          @SuppressWarnings("ConstantConditions") final EncryptionContext context =
+            new EncryptionContext(safeAlias, key, password, username);
 
-        @SuppressWarnings("ConstantConditions") final EncryptionContext context =
-          new EncryptionContext(safeAlias, key, username, password);
-
-        handler.askAccessPermissions(context);
-        if (handler.getError() != null) {
-          ErrorHelper.handleHandlerError(handler.getError().getMessage());
+          handler.askAccessPermissions(context);
+          if (handler.getError() != null) {
+            ErrorHelper.handleHandlerError(handler.getError().getMessage());
+          }
+          return handler.getEncryptionResult();
+        } else {
+          return new EncryptionResult(
+            username.getBytes(),
+            encryptString(key, password),
+            this);
         }
-        return handler.getEncryptionResult();
         // throw new CryptoFailedException("Could not encrypt data with alias: " + alias, e);
       } catch (Throwable fail) {
         throw new CryptoFailedException("Unknown error with alias: " + alias +
@@ -190,7 +195,7 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
     try {
       final Key key = extractGeneratedKey(safeAlias, level, retries);
       return new DecryptionResult(
-        decryptBytes(key, username),
+        new String(username, StandardCharsets.UTF_8),
         decryptBytes(key, password),
         getSecurityLevel(key));
     } catch (GeneralSecurityException e) {
@@ -221,14 +226,18 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
       // key = extractGeneratedKey(safeAlias, level, retries);
 
       try {
+      if (KeychainModule.isSecuredByBiometry(service)) {
+        throw new GeneralSecurityException("BIOMETRICS");
+      } else {
         final DecryptionResult results = decrypt(service, username, password, level);
         handler.onDecrypt(results, null);
-      } catch(Exception e) {
+       }
+      } catch(GeneralSecurityException e) {
         // key is always NOT NULL otherwise GeneralSecurityException raised
         key = extractGeneratedKey(safeAlias, level, retries);
         // expected that KEY instance is extracted and we caught exception on decryptBytes operation
         @SuppressWarnings("ConstantConditions") final DecryptionContext context =
-        new DecryptionContext(safeAlias, key, username, password);
+        new DecryptionContext(safeAlias, key, password, username);
         handler.askAccessPermissions(context);
       }
     } catch (final Exception ex) {
@@ -264,7 +273,7 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
         .setBlockModes(BLOCK_MODE_CBC)
         .setEncryptionPaddings(PADDING_PKCS7)
         .setUserAuthenticationRequired(true)
-        .setUserAuthenticationValidityDurationSeconds(5)
+        .setInvalidatedByBiometricEnrollment(true)
         .setRandomizedEncryptionRequired(true)
         .setKeySize(ENCRYPTION_KEY_SIZE);
     } else {
@@ -305,45 +314,35 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
     return generator.generateKey();
   }
 
-  /** Decrypt provided bytes to a string. */
-  @NonNull
-  @Override
-  protected String decryptBytes(@NonNull final Key key, @NonNull final byte[] bytes,
-                                @Nullable final DecryptBytesHandler handler)
-    throws GeneralSecurityException, IOException {
-    final Cipher cipher = getCachedInstance();
-
-    try {
-      // read the initialization vector from bytes array
-      final IvParameterSpec iv = IV.readIv(bytes);
-      cipher.init(Cipher.DECRYPT_MODE, key, iv);
-
-      // decrypt the bytes using cipher.doFinal(). Using a CipherInputStream for decryption has historically led to issues
-      // on the Pixel family of devices.
-      // see https://github.com/oblador/react-native-keychain/issues/383
-      byte[] decryptedBytes = cipher.doFinal(bytes, IV.IV_LENGTH, bytes.length - IV.IV_LENGTH);
-      return new String(decryptedBytes, UTF8);
-    } catch (Throwable fail) {
-      Log.w(LOG_TAG, fail.getMessage(), fail);
-      throw fail;
-    }
-  }
   //endregion
 
   //region Initialization Vector encrypt/decrypt support
   @NonNull
   @Override
   public byte[] encryptString(@NonNull final Key key, @NonNull final String value)
-    throws GeneralSecurityException, IOException {
+    throws GeneralSecurityException, CryptoFailedException, IOException {
+    return encryptString(key, value, null, IV.encrypt);
+  }
 
-    return encryptString(key, value, IV.encrypt);
+  @NonNull
+  @Override
+  public byte[] encryptString(@NonNull final Key key, @NonNull final String value, @NonNull final Cipher cipher)
+    throws GeneralSecurityException, CryptoFailedException, IOException {
+    return encryptString(key, value, cipher, IV.encryptWithoutInit);
   }
 
   @NonNull
   @Override
   public String decryptBytes(@NonNull final Key key, @NonNull final byte[] bytes)
     throws GeneralSecurityException, IOException {
-    return decryptBytes(key, bytes, IV.decrypt);
+    return decryptBytes(key, bytes, null, IV.decrypt);
+  }
+
+  @NonNull
+  @Override
+  public String decryptBytes(@NonNull final Key key, @NonNull final byte[] bytes, @NonNull final Cipher cipher)
+    throws GeneralSecurityException, IOException {
+    return decryptBytes(key, bytes, cipher, IV.decryptWithoutInit);
   }
   //endregion
 }
