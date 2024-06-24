@@ -28,6 +28,8 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.ProviderException;
 import java.security.UnrecoverableKeyException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
@@ -321,7 +323,14 @@ abstract public class CipherStorageBase implements CipherStorage {
   public byte[] encryptString(@NonNull final Key key, @NonNull final String value)
     throws IOException, GeneralSecurityException {
 
-    return encryptString(key, value, Defaults.encrypt);
+    return encryptString(key, value, null, Defaults.encrypt);
+  }
+
+  @NonNull
+  public byte[] encryptString(@NonNull final Key key, @NonNull final String value, @NonNull final Cipher cipher)
+    throws IOException, GeneralSecurityException {
+
+    return encryptString(key, value, cipher, Defaults.encrypt);
   }
 
   /** Default decryption with cipher without initialization vector. */
@@ -329,33 +338,46 @@ abstract public class CipherStorageBase implements CipherStorage {
   public String decryptBytes(@NonNull final Key key, @NonNull final byte[] bytes)
     throws IOException, GeneralSecurityException {
 
-    return decryptBytes(key, bytes, Defaults.decrypt);
+    return decryptBytes(key, bytes, null, Defaults.decrypt);
+  }
+
+  /** Default decryption with cipher without initialization vector. */
+  @NonNull
+  public String decryptBytes(@NonNull final Key key, @NonNull final byte[] bytes, @NonNull final Cipher cipher)
+    throws IOException, GeneralSecurityException {
+
+    return decryptBytes(key, bytes, cipher, Defaults.decrypt);
   }
 
   /** Encrypt provided string value. */
   @NonNull
   protected byte[] encryptString(@NonNull final Key key, @NonNull final String value,
-                                 @Nullable final EncryptStringHandler handler)
-    throws IOException, GeneralSecurityException {
+                                 @Nullable final Cipher cipher, @Nullable final EncryptStringHandler handler)
+    throws IOException, CryptoFailedException, GeneralSecurityException {
 
-    final Cipher cipher = getCachedInstance();
+    Cipher cipherToUse = cipher == null ? getCachedInstance() : cipher;
 
     // encrypt the value using a CipherOutputStream
     try (final ByteArrayOutputStream output = new ByteArrayOutputStream()) {
 
       // write initialization vector to the beginning of the stream
       if (null != handler) {
-        handler.initialize(cipher, key, output);
+        handler.initialize(cipherToUse, key, output);
         output.flush();
       }
 
-      try (final CipherOutputStream encrypt = new CipherOutputStream(output, cipher)) {
+      try (final CipherOutputStream encrypt = new CipherOutputStream(output, cipherToUse)) {
         encrypt.write(value.getBytes(UTF8));
+        encrypt.close();
       }
 
       return output.toByteArray();
     } catch (Throwable fail) {
       Log.e(LOG_TAG, fail.getMessage(), fail);
+
+      if (fail.getMessage().contains("javax.crypto.IllegalBlockSizeException")) {
+        throw new CryptoFailedException("javax.crypto.IllegalBlockSizeException");
+      }
 
       throw fail;
     }
@@ -364,9 +386,9 @@ abstract public class CipherStorageBase implements CipherStorage {
   /** Decrypt provided bytes to a string. */
   @NonNull
   protected String decryptBytes(@NonNull final Key key, @NonNull final byte[] bytes,
-                                @Nullable final DecryptBytesHandler handler)
-    throws GeneralSecurityException, IOException {
-    final Cipher cipher = getCachedInstance();
+                                @Nullable final Cipher cipher, @Nullable final DecryptBytesHandler handler)
+    throws CryptoFailedException, GeneralSecurityException, IOException {
+    Cipher cipherToUse = cipher == null ? getCachedInstance() : cipher;
 
     // decrypt the bytes using a CipherInputStream
     try (ByteArrayInputStream in = new ByteArrayInputStream(bytes);
@@ -374,16 +396,20 @@ abstract public class CipherStorageBase implements CipherStorage {
 
       // read the initialization vector from the beginning of the stream
       if (null != handler) {
-        handler.initialize(cipher, key, in);
+        handler.initialize(cipherToUse, key, in);
       }
 
-      try (CipherInputStream decrypt = new CipherInputStream(in, cipher)) {
+      try (CipherInputStream decrypt = new CipherInputStream(in, cipherToUse)) {
         copy(decrypt, output);
       }
 
       return new String(output.toByteArray(), UTF8);
     } catch (Throwable fail) {
       Log.w(LOG_TAG, fail.getMessage(), fail);
+
+      if (fail.getMessage().contains("javax.crypto.IllegalBlockSizeException")) {
+        throw new CryptoFailedException("javax.crypto.IllegalBlockSizeException");
+      }
 
       throw fail;
     }
@@ -528,15 +554,35 @@ abstract public class CipherStorageBase implements CipherStorage {
     /** Save Initialization vector to output stream. */
     public static final EncryptStringHandler encrypt = (cipher, key, output) -> {
       cipher.init(Cipher.ENCRYPT_MODE, key);
+      initIV(cipher, output);
+    };
 
+    public static final EncryptStringHandler encryptWithoutInit = (cipher, key, output) -> {
+      initIV(cipher, output);
+    };
+
+    private static void initIV(Cipher cipher, OutputStream output) throws IOException {
       final byte[] iv = cipher.getIV();
       output.write(iv, 0, iv.length);
-    };
+    }
     /** Read initialization vector from input stream and configure cipher by it. */
     public static final DecryptBytesHandler decrypt = (cipher, key, input) -> {
       final IvParameterSpec iv = readIv(input);
       cipher.init(Cipher.DECRYPT_MODE, key, iv);
     };
+
+    /** Read initialization vector from input stream and configure cipher by it. */
+    public static final DecryptBytesHandler decryptWithoutInit = (cipher, key, input) -> {
+      final IvParameterSpec iv = readIv(input);
+    };
+
+    /** Read initialization vector from input stream and configure cipher by it. */
+    public static void initCipherForDecrypt(Cipher cipher, Key key, byte[] bytes)
+      throws InvalidAlgorithmParameterException, InvalidKeyException, IOException {
+      final ByteArrayInputStream input = new ByteArrayInputStream(bytes);
+      final IvParameterSpec iv = readIv(input);
+      cipher.init(Cipher.DECRYPT_MODE, key, iv);
+    }
 
     /** Extract initialization vector from provided bytes array. */
     @NonNull

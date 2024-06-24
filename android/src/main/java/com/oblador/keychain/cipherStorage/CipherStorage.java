@@ -60,8 +60,10 @@ public interface CipherStorage {
     }
   }
 
+  interface CryptoContext {}
+
   /** Ask access permission for decrypting credentials in provided context. */
-  class DecryptionContext extends CipherResult<byte[]> {
+  class DecryptionContext extends CipherResult<byte[]> implements CryptoContext {
     public final Key key;
     public final String keyAlias;
 
@@ -75,11 +77,29 @@ public interface CipherStorage {
     }
   }
 
+  class EncryptionContext extends CipherResult<String> implements CryptoContext {
+    public final Key key;
+    public final String keyAlias;
+
+    public EncryptionContext(@NonNull final String keyAlias,
+                             @NonNull final Key key,
+                             @NonNull final String password,
+                             @NonNull final String username) {
+      super(username, password);
+      this.keyAlias = keyAlias;
+      this.key = key;
+    }
+  }
+
   /** Get access to the results of decryption via properties. */
   interface WithResults {
     /** Get reference on results. */
     @Nullable
     DecryptionResult getResult();
+
+    /** Get reference on results. */
+    @Nullable
+    EncryptionResult getEncryptionResult();
 
     /** Get reference on capture error. */
     @Nullable
@@ -92,12 +112,13 @@ public interface CipherStorage {
   /** Handler that allows to inject some actions during decrypt operations. */
   interface DecryptionResultHandler extends WithResults {
     /** Ask user for interaction, often its unlock of keystore by biometric data providing. */
-    void askAccessPermissions(@NonNull final DecryptionContext context);
+    void askAccessPermissions(@NonNull final CryptoContext context);
 
     /**
      *
      */
     void onDecrypt(@Nullable final DecryptionResult decryptionResult, @Nullable final Throwable error);
+    void onEncrypt(@Nullable final EncryptionResult decryptionResult, @Nullable final Throwable error);
   }
   //endregion
 
@@ -106,6 +127,15 @@ public interface CipherStorage {
   /** Encrypt credentials with provided key (by alias) and required security level. */
   @NonNull
   EncryptionResult encrypt(@NonNull final String alias,
+                           @NonNull final String username,
+                           @NonNull final String password,
+                           @NonNull final SecurityLevel level)
+    throws CryptoFailedException;
+
+  /** Encrypt credentials with provided key (by alias) and required security level. - biometry needed */
+  @NonNull
+  EncryptionResult encrypt(@NonNull final DecryptionResultHandler handler,
+                           @NonNull final String alias,
                            @NonNull final String username,
                            @NonNull final String password,
                            @NonNull final SecurityLevel level)

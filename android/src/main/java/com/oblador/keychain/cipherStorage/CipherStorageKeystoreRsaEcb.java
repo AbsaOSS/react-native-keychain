@@ -81,6 +81,16 @@ public class CipherStorageKeystoreRsaEcb extends CipherStorageBase {
     }
   }
 
+  @Override
+  public EncryptionResult encrypt(@NonNull final DecryptionResultHandler handler,
+                                  @NonNull final String alias,
+                                  @NonNull final String username,
+                                  @NonNull final String password,
+                                  @NonNull final SecurityLevel level)
+    throws CryptoFailedException {
+      return null;
+    }
+
   @NonNull
   @Override
   public DecryptionResult decrypt(@NonNull String alias,
@@ -263,10 +273,11 @@ public class CipherStorageKeystoreRsaEcb extends CipherStorageBase {
   /** Non interactive handler for decrypting the credentials. */
   public static class NonInteractiveHandler implements DecryptionResultHandler {
     private DecryptionResult result;
+    private EncryptionResult encryptionResult;
     private Throwable error;
 
     @Override
-    public void askAccessPermissions(@NonNull final DecryptionContext context) {
+    public void askAccessPermissions(@NonNull final CryptoContext context) {
       final CryptoFailedException failure = new CryptoFailedException(
         "Non interactive decryption mode.");
 
@@ -280,10 +291,23 @@ public class CipherStorageKeystoreRsaEcb extends CipherStorageBase {
       this.error = error;
     }
 
+    @Override
+    public void onEncrypt(@Nullable final EncryptionResult encryptionResult,
+                          @Nullable final Throwable error) {
+      this.encryptionResult = encryptionResult;
+      this.error = error;
+    }
+
     @Nullable
     @Override
     public DecryptionResult getResult() {
       return result;
+    }
+
+    @Nullable
+    @Override
+    public EncryptionResult getEncryptionResult() {
+      return encryptionResult;
     }
 
     @Nullable

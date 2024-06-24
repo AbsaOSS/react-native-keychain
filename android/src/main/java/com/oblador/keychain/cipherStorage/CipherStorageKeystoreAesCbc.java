@@ -1,19 +1,26 @@
 package com.oblador.keychain.cipherStorage;
 
+import java.nio.charset.StandardCharsets;
+
 import android.annotation.TargetApi;
 import android.os.Build;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyInfo;
 import android.security.keystore.KeyProperties;
+import android.security.keystore.UserNotAuthenticatedException;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.oblador.keychain.KeychainModule;
 import com.oblador.keychain.KeychainModule.KnownCiphers;
 import com.oblador.keychain.SecurityLevel;
+import com.oblador.keychain.ErrorHelper;
 import com.oblador.keychain.exceptions.CryptoFailedException;
 import com.oblador.keychain.exceptions.KeyStoreAccessException;
+
+import androidx.biometric.BiometricPrompt;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -26,6 +33,8 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.IvParameterSpec;
+
+import java.io.ByteArrayInputStream;
 
 /**
  * @see <a href="https://proandroiddev.com/secure-data-in-android-initialization-vector-6ca1c659762c">Secure Data in Android</a>
@@ -71,7 +80,7 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
   /** Biometry is Not Supported. */
   @Override
   public boolean isBiometrySupported() {
-    return false;
+    return true;
   }
 
   /** AES. */
@@ -110,14 +119,19 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
     final String safeAlias = getDefaultAliasIfEmpty(alias, getDefaultAliasServiceName());
     final AtomicInteger retries = new AtomicInteger(1);
 
+    Key key = null;
     try {
-      final Key key = extractGeneratedKey(safeAlias, level, retries);
+      key = extractGeneratedKey(safeAlias, level, retries);
 
       return new EncryptionResult(
         encryptString(key, username),
         encryptString(key, password),
         this);
     } catch (GeneralSecurityException e) {
+      // @SuppressWarnings("ConstantConditions") final DecryptionContext context =
+      //   new DecryptionContext(safeAlias, key, password, username);
+
+      // handler.askAccessPermissions(context);
       throw new CryptoFailedException("Could not encrypt data with alias: " + alias, e);
     } catch (Throwable fail) {
       throw new CryptoFailedException("Unknown error with alias: " + alias +
@@ -126,8 +140,48 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
   }
 
   @Override
+  public EncryptionResult encrypt(@NonNull final DecryptionResultHandler handler,
+                                  @NonNull final String alias,
+                                  @NonNull final String username,
+                                  @NonNull final String password,
+                                  @NonNull final SecurityLevel level)
+    throws CryptoFailedException {
+      throwIfInsufficientLevel(level);
+
+      final String safeAlias = getDefaultAliasIfEmpty(alias, getDefaultAliasServiceName());
+      final AtomicInteger retries = new AtomicInteger(1);
+
+      Key key = null;
+      try {
+
+        key = extractGeneratedKey(safeAlias, level, retries);
+
+        if (KeychainModule.isSecuredByBiometry(alias)) {
+          @SuppressWarnings("ConstantConditions") final EncryptionContext context =
+            new EncryptionContext(safeAlias, key, password, username);
+
+          handler.askAccessPermissions(context);
+          if (handler.getError() != null) {
+            ErrorHelper.handleHandlerError(handler.getError().getMessage());
+          }
+          return handler.getEncryptionResult();
+        } else {
+          return new EncryptionResult(
+            username.getBytes(),
+            encryptString(key, password),
+            this);
+        }
+        // throw new CryptoFailedException("Could not encrypt data with alias: " + alias, e);
+      } catch (Throwable fail) {
+        throw new CryptoFailedException("Unknown error with alias: " + alias +
+          ", error: " + fail.getMessage(), fail);
+      }
+    }
+
+  @Override
   @NonNull
-  public DecryptionResult decrypt(@NonNull final String alias,
+  public DecryptionResult decrypt(
+                                  @NonNull final String alias,
                                   @NonNull final byte[] username,
                                   @NonNull final byte[] password,
                                   @NonNull final SecurityLevel level)
@@ -140,9 +194,8 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
 
     try {
       final Key key = extractGeneratedKey(safeAlias, level, retries);
-
       return new DecryptionResult(
-        decryptBytes(key, username),
+        new String(username, StandardCharsets.UTF_8),
         decryptBytes(key, password),
         getSecurityLevel(key));
     } catch (GeneralSecurityException e) {
@@ -159,12 +212,44 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
                       @NonNull final String service,
                       @NonNull final byte[] username,
                       @NonNull final byte[] password,
-                      @NonNull final SecurityLevel level) {
-    try {
-      final DecryptionResult results = decrypt(service, username, password, level);
+                      @NonNull final SecurityLevel level) throws CryptoFailedException {
+    throwIfInsufficientLevel(level);
 
-      handler.onDecrypt(results, null);
-    } catch (Throwable fail) {
+    final String safeAlias = getDefaultAliasIfEmpty(service, getDefaultAliasServiceName());
+    final AtomicInteger retries = new AtomicInteger(1);
+    boolean shouldAskPermissions = false;
+
+    Key key = null;
+
+    try {
+      // key is always NOT NULL otherwise GeneralSecurityException raised
+      // key = extractGeneratedKey(safeAlias, level, retries);
+
+      try {
+      if (KeychainModule.isSecuredByBiometry(service)) {
+        throw new GeneralSecurityException("BIOMETRICS");
+      } else {
+        final DecryptionResult results = decrypt(service, username, password, level);
+        handler.onDecrypt(results, null);
+       }
+      } catch(GeneralSecurityException e) {
+        // key is always NOT NULL otherwise GeneralSecurityException raised
+        key = extractGeneratedKey(safeAlias, level, retries);
+        // expected that KEY instance is extracted and we caught exception on decryptBytes operation
+        @SuppressWarnings("ConstantConditions") final DecryptionContext context =
+        new DecryptionContext(safeAlias, key, password, username);
+        handler.askAccessPermissions(context);
+      }
+    } catch (final Exception ex) {
+      Log.d(LOG_TAG, "Unlock of keystore is needed. Error: " + ex.getMessage(), ex);
+
+      // expected that KEY instance is extracted and we caught exception on decryptBytes operation
+      @SuppressWarnings("ConstantConditions") final DecryptionContext context =
+        new DecryptionContext(safeAlias, key, username, password);
+
+      handler.askAccessPermissions(context);
+    } catch (final Throwable fail) {
+      // any other exception treated as a failure
       handler.onDecrypt(null, fail);
     }
   }
@@ -181,13 +266,24 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
       throw new KeyStoreAccessException("Unsupported API" + Build.VERSION.SDK_INT + " version detected.");
     }
 
-    final int purposes = KeyProperties.PURPOSE_DECRYPT | KeyProperties.PURPOSE_ENCRYPT;
+    final int purposes = KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT;
 
-    return new KeyGenParameterSpec.Builder(alias, purposes)
-      .setBlockModes(BLOCK_MODE_CBC)
-      .setEncryptionPaddings(PADDING_PKCS7)
-      .setRandomizedEncryptionRequired(true)
-      .setKeySize(ENCRYPTION_KEY_SIZE);
+    if (KeychainModule.isSecuredByBiometry(alias)) {
+      return new KeyGenParameterSpec.Builder(alias, purposes)
+        .setBlockModes(BLOCK_MODE_CBC)
+        .setEncryptionPaddings(PADDING_PKCS7)
+        .setUserAuthenticationRequired(true)
+        .setInvalidatedByBiometricEnrollment(true)
+        .setRandomizedEncryptionRequired(true)
+        .setKeySize(ENCRYPTION_KEY_SIZE);
+    } else {
+      return new KeyGenParameterSpec.Builder(alias, purposes)
+        .setBlockModes(BLOCK_MODE_CBC)
+        .setEncryptionPaddings(PADDING_PKCS7)
+        .setRandomizedEncryptionRequired(true)
+        .setKeySize(ENCRYPTION_KEY_SIZE);
+    }
+
   }
 
   /** Get information about provided key. */
@@ -212,54 +308,41 @@ public class CipherStorageKeystoreAesCbc extends CipherStorageBase {
       throw new KeyStoreAccessException("Unsupported API" + Build.VERSION.SDK_INT + " version detected.");
     }
 
-    final KeyGenerator generator = KeyGenerator.getInstance(getEncryptionAlgorithm(), KEYSTORE_TYPE);
-
-    // initialize key generator
+    KeyGenerator generator = KeyGenerator.getInstance(getEncryptionAlgorithm(), KEYSTORE_TYPE);
     generator.init(spec);
 
     return generator.generateKey();
   }
 
-  /** Decrypt provided bytes to a string. */
-  @NonNull
-  @Override
-  protected String decryptBytes(@NonNull final Key key, @NonNull final byte[] bytes,
-                                @Nullable final DecryptBytesHandler handler)
-    throws GeneralSecurityException, IOException {
-    final Cipher cipher = getCachedInstance();
-
-    try {
-      // read the initialization vector from bytes array
-      final IvParameterSpec iv = IV.readIv(bytes);
-      cipher.init(Cipher.DECRYPT_MODE, key, iv);
-
-      // decrypt the bytes using cipher.doFinal(). Using a CipherInputStream for decryption has historically led to issues
-      // on the Pixel family of devices.
-      // see https://github.com/oblador/react-native-keychain/issues/383
-      byte[] decryptedBytes = cipher.doFinal(bytes, IV.IV_LENGTH, bytes.length - IV.IV_LENGTH);
-      return new String(decryptedBytes, UTF8);
-    } catch (Throwable fail) {
-      Log.w(LOG_TAG, fail.getMessage(), fail);
-
-      throw fail;
-    }
-  }
   //endregion
 
   //region Initialization Vector encrypt/decrypt support
   @NonNull
   @Override
   public byte[] encryptString(@NonNull final Key key, @NonNull final String value)
-    throws GeneralSecurityException, IOException {
+    throws GeneralSecurityException, CryptoFailedException, IOException {
+    return encryptString(key, value, null, IV.encrypt);
+  }
 
-    return encryptString(key, value, IV.encrypt);
+  @NonNull
+  @Override
+  public byte[] encryptString(@NonNull final Key key, @NonNull final String value, @NonNull final Cipher cipher)
+    throws GeneralSecurityException, CryptoFailedException, IOException {
+    return encryptString(key, value, cipher, IV.encryptWithoutInit);
   }
 
   @NonNull
   @Override
   public String decryptBytes(@NonNull final Key key, @NonNull final byte[] bytes)
     throws GeneralSecurityException, IOException {
-    return decryptBytes(key, bytes, IV.decrypt);
+    return decryptBytes(key, bytes, null, IV.decrypt);
+  }
+
+  @NonNull
+  @Override
+  public String decryptBytes(@NonNull final Key key, @NonNull final byte[] bytes, @NonNull final Cipher cipher)
+    throws GeneralSecurityException, IOException {
+    return decryptBytes(key, bytes, cipher, IV.decryptWithoutInit);
   }
   //endregion
 }
